@@ -1,6 +1,6 @@
 
-import React, { useState, useMemo } from 'react';
-import { LayoutDashboard, Receipt, Users2, Building2, Settings, Plus, Sparkles, LogOut, Menu, X, Wrench, Monitor, Download, Share2, ShieldCheck, Search, Filter, Smartphone, Smartphone as AndroidIcon } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { LayoutDashboard, Receipt, Users2, Building2, Settings, Plus, Sparkles, LogOut, Menu, X, Wrench, Monitor, Download, Share2, ShieldCheck, Search, Filter, Smartphone } from 'lucide-react';
 import { Transaction, Supplier, Client, Provider, MaintenanceRecord, MaintenanceStatus } from './types';
 import { INITIAL_SUPPLIERS, INITIAL_CLIENTS, MOCK_TRANSACTIONS, PROVIDER_COLORS, MOCK_MAINTENANCE } from './constants';
 import Dashboard from './components/Dashboard';
@@ -26,10 +26,13 @@ const App: React.FC = () => {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // Filter logic for transactions
   const filteredTransactions = useMemo(() => {
     return transactions.filter(tx => {
-      const matchesSearch = tx.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          tx.provider.toLowerCase().includes(searchTerm.toLowerCase());
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = tx.clientName.toLowerCase().includes(searchLower) || 
+                          tx.provider.toLowerCase().includes(searchLower) ||
+                          tx.type.toLowerCase().includes(searchLower);
       const matchesProvider = filterProvider === 'all' || tx.provider === filterProvider;
       return matchesSearch && matchesProvider;
     });
@@ -55,10 +58,16 @@ const App: React.FC = () => {
   };
 
   const generateAiSummary = async () => {
+    if (isAiLoading) return;
     setIsAiLoading(true);
-    const summary = await getFinancialInsights(transactions, suppliers);
-    setAiInsight(summary);
-    setIsAiLoading(false);
+    try {
+      const summary = await getFinancialInsights(transactions, suppliers);
+      setAiInsight(summary);
+    } catch (e) {
+      setAiInsight("حدث خطأ أثناء الاتصال بالذكاء الاصطناعي.");
+    } finally {
+      setIsAiLoading(false);
+    }
   };
 
   const getNextClientCode = () => {
@@ -69,21 +78,21 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-gray-50">
+    <div className="min-h-screen flex flex-col md:flex-row bg-gray-50 text-right" dir="rtl">
       {/* Mobile Header */}
       <div className="md:hidden bg-white border-b p-4 flex justify-between items-center sticky top-0 z-40">
         <div className="flex items-center gap-2">
            <Building2 size={24} className="text-blue-600" />
            <h1 className="text-xl font-bold text-gray-800">إي-باي برو</h1>
         </div>
-        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-          {isSidebarOpen ? <X size={28} /> : <Menu size={28} />}
+        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-gray-100 rounded-lg transition">
+          {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 right-0 w-64 bg-white border-l shadow-lg transform transition-transform duration-300 z-50
+        fixed inset-y-0 right-0 w-64 bg-white border-l shadow-xl transform transition-transform duration-300 z-50
         md:translate-x-0 md:static md:shadow-none
         ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}
       `}>
@@ -112,7 +121,7 @@ const App: React.FC = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 lg:p-10 max-w-7xl mx-auto w-full">
+      <main className="flex-1 p-4 md:p-8 lg:p-10 max-w-7xl mx-auto w-full overflow-x-hidden">
         {/* Top Header Actions */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
@@ -131,10 +140,10 @@ const App: React.FC = () => {
             <button 
               onClick={generateAiSummary}
               disabled={isAiLoading}
-              className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2 rounded-xl shadow-md hover:opacity-90 transition disabled:opacity-50 text-sm"
+              className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2 rounded-xl shadow-md hover:opacity-90 transition disabled:opacity-50 text-sm font-medium"
             >
               <Sparkles size={16} />
-              {isAiLoading ? 'تحليل...' : 'تحليل ذكي'}
+              {isAiLoading ? 'جاري التحليل...' : 'تحليل ذكي'}
             </button>
             <button 
               onClick={() => setShowAddTxModal(true)}
@@ -149,7 +158,7 @@ const App: React.FC = () => {
         {/* AI Insight Section */}
         {aiInsight && (
           <div className="mb-8 bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 p-6 rounded-2xl relative overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
-            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
+            <div className="absolute top-0 right-0 w-1 h-full bg-indigo-500"></div>
             <div className="flex items-start gap-4">
               <div className="bg-indigo-100 p-2 rounded-lg text-indigo-600 shrink-0">
                 <Sparkles size={24} />
@@ -158,7 +167,7 @@ const App: React.FC = () => {
                 <h3 className="font-bold text-indigo-900 mb-1">التقرير الذكي</h3>
                 <p className="text-indigo-800 whitespace-pre-line leading-relaxed text-sm">{aiInsight}</p>
               </div>
-              <button onClick={() => setAiInsight('')} className="text-indigo-400 hover:text-indigo-600">
+              <button onClick={() => setAiInsight('')} className="text-indigo-400 hover:text-indigo-600 p-1">
                 <X size={20} />
               </button>
             </div>
@@ -176,14 +185,14 @@ const App: React.FC = () => {
                     <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input 
                       type="text" 
-                      placeholder="بحث..." 
-                      className="w-full pr-10 pl-4 py-2 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-blue-100 outline-none transition"
+                      placeholder="بحث في العمليات..." 
+                      className="w-full pr-10 pl-4 py-2 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-blue-100 outline-none transition text-sm"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                  </div>
                  <select 
-                   className="bg-gray-50 border rounded-xl px-4 py-2 outline-none text-sm"
+                   className="bg-gray-50 border rounded-xl px-4 py-2 outline-none text-sm font-medium"
                    value={filterProvider}
                    onChange={(e) => setFilterProvider(e.target.value)}
                  >
@@ -217,10 +226,10 @@ const App: React.FC = () => {
                           </td>
                           <td className="p-4 text-sm font-medium">{tx.type}</td>
                           <td className="p-4 font-bold text-sm">{tx.amount.toLocaleString()} ج.م</td>
-                          <td className="p-4 text-green-600 font-bold text-sm">+{tx.commission}</td>
+                          <td className="p-4 text-green-600 font-bold text-sm">+{tx.commission.toLocaleString()}</td>
                         </tr>
                       )) : (
-                        <tr><td colSpan={5} className="p-10 text-center text-gray-400 italic">لا توجد بيانات</td></tr>
+                        <tr><td colSpan={5} className="p-10 text-center text-gray-400 italic">لا توجد نتائج للبحث</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -234,22 +243,22 @@ const App: React.FC = () => {
               <div className="flex justify-end">
                 <button 
                   onClick={() => setShowAddClientModal(true)} 
-                  className="bg-green-600 text-white px-6 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-green-100"
+                  className="bg-green-600 text-white px-6 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-green-100 hover:bg-green-700 transition"
                 >
                   <Plus size={18} />
-                  إضافة عميل
+                  إضافة عميل جديد
                 </button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {clients.map(client => (
-                  <div key={client.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center text-center relative hover:shadow-md transition-all">
-                    <span className="absolute top-4 left-4 bg-gray-50 text-gray-400 px-3 py-1 rounded-lg text-xs font-mono font-bold">#{client.code}</span>
-                    <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 mb-4"><Users2 size={32} /></div>
+                  <div key={client.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center text-center relative hover:shadow-md transition-all group">
+                    <span className="absolute top-4 left-4 bg-gray-50 text-gray-400 px-3 py-1 rounded-lg text-xs font-mono font-bold group-hover:bg-blue-600 group-hover:text-white transition-colors">#{client.code}</span>
+                    <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 mb-4 group-hover:scale-110 transition-transform"><Users2 size={32} /></div>
                     <h3 className="text-xl font-bold text-gray-800">{client.name}</h3>
-                    <p className="text-gray-500 mb-4">{client.phone}</p>
+                    <p className="text-gray-500 mb-4 text-sm">{client.phone}</p>
                     <div className="w-full grid grid-cols-2 gap-4 pt-4 border-t border-gray-50">
-                      <div><p className="text-xs text-gray-400">الرصيد</p><p className={`font-bold ${client.balance < 0 ? 'text-red-500' : 'text-green-600'}`}>{client.balance.toLocaleString()} ج.م</p></div>
-                      <div><p className="text-xs text-gray-400">آخر عملية</p><p className="font-bold text-gray-700 text-xs">{client.lastTransaction}</p></div>
+                      <div><p className="text-[10px] text-gray-400 uppercase font-bold">الرصيد</p><p className={`font-bold ${client.balance < 0 ? 'text-red-500' : 'text-green-600'}`}>{client.balance.toLocaleString()} ج.م</p></div>
+                      <div><p className="text-[10px] text-gray-400 uppercase font-bold">آخر عملية</p><p className="font-bold text-gray-700 text-xs">{client.lastTransaction}</p></div>
                     </div>
                   </div>
                 ))}
@@ -274,8 +283,11 @@ const App: React.FC = () => {
                   <div className="space-y-3">
                     <div className="flex justify-between"><span className="text-gray-500 text-sm">الرصيد الحالي</span><span className="font-bold text-sm">{sup.currentBalance.toLocaleString()} ج.م</span></div>
                     <div className="flex justify-between"><span className="text-gray-500 text-sm">حد التنبيه</span><span className="font-medium text-red-400 text-sm">{sup.threshold.toLocaleString()} ج.م</span></div>
+                    <div className="w-full bg-gray-100 h-1.5 rounded-full mt-2">
+                       <div className={`h-full ${PROVIDER_COLORS[sup.provider]} rounded-full transition-all`} style={{width: `${Math.min(100, (sup.currentBalance/20000)*100)}%`}}></div>
+                    </div>
                   </div>
-                  <button className="w-full mt-6 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold py-2 rounded-xl border border-transparent hover:border-gray-200 transition text-sm">كشف حساب</button>
+                  <button className="w-full mt-6 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold py-2 rounded-xl border border-transparent hover:border-gray-200 transition text-sm">كشف حساب مفصل</button>
                 </div>
               ))}
             </div>
@@ -283,63 +295,28 @@ const App: React.FC = () => {
 
           {activeTab === 'distribution' && (
             <div className="max-w-3xl mx-auto space-y-6">
-              {/* Desktop Section */}
-              <div className="bg-white p-6 md:p-8 rounded-3xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-6 items-center">
-                <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center shrink-0">
-                  <Monitor size={40} />
-                </div>
-                <div className="flex-1 text-center md:text-right">
-                  <h3 className="text-xl font-bold mb-2">استخراج نسخة الويندوز (EXE)</h3>
-                  <p className="text-gray-500 text-sm leading-relaxed mb-4">
-                    لتحويل البرنامج إلى ملف تشغيل مستقل للكمبيوتر، استخدم أداة <span className="font-bold text-blue-600">Nativefier</span>.
-                  </p>
-                  <code className="block bg-gray-50 p-3 rounded-xl font-mono text-[10px] md:text-xs text-left overflow-x-auto no-scrollbar border">
-                    nativefier --name "E-Pay Pro" --icon icon.ico --single-instance "URL_HERE"
-                  </code>
-                </div>
+              <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-3xl shadow-xl text-white text-center">
+                 <Smartphone size={48} className="mx-auto mb-4 opacity-90" />
+                 <h3 className="text-2xl font-bold mb-2">حول البرنامج إلى تطبيق APK</h3>
+                 <p className="text-blue-100 text-sm mb-6">اتبع الخطوات التالية لتوزيع البرنامج على هواتف الأندرويد ليعمل بشكل احترافي.</p>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-white/10 p-4 rounded-2xl border border-white/20 backdrop-blur-sm">
+                       <h4 className="font-bold mb-1">الخيار 1: تثبيت فوري (PWA)</h4>
+                       <p className="text-xs text-blue-50 opacity-80 leading-relaxed">افتح الرابط في كروم الموبايل واضغط "Add to Home Screen".</p>
+                    </div>
+                    <div className="bg-white/10 p-4 rounded-2xl border border-white/20 backdrop-blur-sm">
+                       <h4 className="font-bold mb-1">الخيار 2: استخراج ملف APK</h4>
+                       <p className="text-xs text-blue-50 opacity-80 leading-relaxed">استخدم أداة Bubblewrap أو WebIntoApp لتحويل الرابط لملف تثبيت.</p>
+                    </div>
+                 </div>
               </div>
 
-              {/* Android Section */}
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 md:p-8 rounded-3xl border border-green-100 shadow-sm flex flex-col md:flex-row gap-6 items-center relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-24 h-24 bg-green-200/20 rounded-full -translate-x-12 -translate-y-12"></div>
-                <div className="w-20 h-20 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center shrink-0 z-10">
-                  <AndroidIcon size={40} />
-                </div>
-                <div className="flex-1 text-center md:text-right z-10">
-                  <h3 className="text-xl font-bold text-green-800 mb-2">استخراج تطبيق الأندرويد (APK)</h3>
-                  <p className="text-green-700 text-sm leading-relaxed mb-6">
-                    يمكنك الآن تحويل هذا النظام إلى تطبيق موبايل كامل يعمل على هواتف المناديب بسهولة تامة.
-                  </p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white/60 p-4 rounded-2xl border border-green-200 text-right">
-                      <h4 className="font-bold text-green-900 text-sm mb-1 flex items-center gap-2">
-                        <Smartphone size={16} /> الطريقة السهلة (PWA)
-                      </h4>
-                      <p className="text-[11px] text-green-800 leading-relaxed">
-                        افتح الرابط من متصفح جوجل كروم على الهاتف، ثم اختر "إضافة إلى الشاشة الرئيسية". سيظهر كأنه تطبيق مثبت.
-                      </p>
-                    </div>
-                    <div className="bg-white/60 p-4 rounded-2xl border border-green-200 text-right">
-                      <h4 className="font-bold text-green-900 text-sm mb-1 flex items-center gap-2">
-                        <Download size={16} /> استخراج APK حقيقي
-                      </h4>
-                      <p className="text-[11px] text-green-800 leading-relaxed">
-                        استخدم أداة <b>Bubblewrap</b> أو موقع <b>WebIntoApp</b>. ارفع الأيقونة والرابط، وستحصل على ملف APK جاهز للتثبيت.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tips Section */}
-              <div className="bg-gray-900 text-white p-8 rounded-3xl shadow-xl">
-                 <h4 className="font-bold mb-4 flex items-center gap-2 text-green-400"><ShieldCheck size={20} /> نصائح هامة للتوزيع:</h4>
-                 <ul className="space-y-3 text-sm text-gray-300">
-                   <li className="flex gap-2"><span>•</span> تأكد من استخدام رابط مؤمن (HTTPS) ليعمل التثبيت بشكل صحيح.</li>
-                   <li className="flex gap-2"><span>•</span> البرنامج يدعم العمل بدون إنترنت (Offline) بمجرد تثبيته كـ PWA أو APK.</li>
-                   <li className="flex gap-2"><span>•</span> يمكنك إرسال ملف الـ APK عبر الواتساب للمناديب ليثبتوه مباشرة.</li>
-                 </ul>
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                 <h4 className="font-bold mb-4 flex items-center gap-2 text-gray-800"><Download size={20} className="text-blue-600" /> دليل توزيع الويندوز (EXE):</h4>
+                 <div className="bg-gray-900 text-indigo-300 p-4 rounded-xl font-mono text-xs overflow-x-auto no-scrollbar">
+                    nativefier --name "E-Pay Pro" --icon icon.ico --single-instance "PASTE_URL_HERE"
+                 </div>
+                 <p className="text-gray-400 text-[10px] mt-2 italic text-center">قم بلصق رابط الموقع بدلاً من كلمة URL_HERE في الكود أعلاه.</p>
               </div>
             </div>
           )}
@@ -349,6 +326,14 @@ const App: React.FC = () => {
       {/* Modals */}
       {showAddTxModal && <TransactionForm onAdd={handleAddTransaction} onClose={() => setShowAddTxModal(false)} />}
       {showAddClientModal && <ClientForm onAdd={handleAddClient} onClose={() => setShowAddClientModal(false)} nextCode={getNextClientCode()} />}
+      
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/40 z-40 md:hidden backdrop-blur-sm transition-opacity" 
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
     </div>
   );
 };
@@ -356,7 +341,7 @@ const App: React.FC = () => {
 const NavItem: React.FC<{ active: boolean, icon: React.ReactNode, label: string, onClick: () => void }> = ({ active, icon, label, onClick }) => (
   <button 
     onClick={onClick}
-    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${active ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}
+    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${active ? 'bg-blue-600 text-white font-bold shadow-lg shadow-blue-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}
   >
     <span className={`${active ? 'text-white' : 'text-gray-400'}`}>{icon}</span>
     <span className="text-sm">{label}</span>
